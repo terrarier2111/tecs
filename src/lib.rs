@@ -1,9 +1,13 @@
+#![feature(tuple_trait)]
+
 mod atomic_bit_set;
 
 use std::any::{Any, TypeId};
 use std::collections::HashMap;
+use std::marker::Tuple;
 use std::num::NonZeroUsize;
 use std::ops::{Deref, DerefMut};
+use bevy_utils::all_tuples;
 
 pub struct World {
     entities: HashMap<EntityId, Entity>,
@@ -63,6 +67,64 @@ impl Entity {
 }
 
 pub type EntityId = NonZeroUsize;
+
+trait InnerId {
+
+    #[inline]
+    fn inner_id() -> TypeId;
+
+}
+
+pub struct Read<'a, T>(&'a T);
+
+impl<'a, T> InnerId for Read<'a, T> {
+    fn inner_id() -> TypeId {
+        TypeId::of::<T>()
+    }
+}
+
+trait ReadRaw {}
+
+impl<'a, T> ReadRaw for Read<'a, T> {}
+
+pub struct Write<'a, T>(&'a mut T);
+
+trait WriteRaw {}
+
+impl<'a, T> WriteRaw for Write<'a, T> {}
+
+impl<'a, T> InnerId for Write<'a, T> {
+    fn inner_id() -> TypeId {
+        TypeId::of::<T>()
+    }
+}
+
+fn deconstruct_params<Args: AsRef<[impl InnerId]>>() -> Vec<SystemArg> {
+
+}
+
+enum SystemArg {
+    Read(TypeId),
+    Write(TypeId),
+}
+
+pub trait System<Args> {
+
+    fn run(&mut self, args: Args);
+
+}
+
+pub trait MultiTyId {
+    const SIZE: usize;
+
+    fn acquire_many(&self) -> fn() -> [TypeId; Self::SIZE];
+}
+
+
+
+/*macro_rules! impl_tuples {
+    ($(($name: ident)))
+}*/
 
 #[cfg(test)]
 mod tests {
